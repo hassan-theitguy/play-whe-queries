@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SQLite Query Viewer</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+        }
+
+        .toolbar {
+            margin-bottom: 20px;
+        }
+
+        select, button {
+            padding: 8px;
+            font-size: 14px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: center;
+        }
+
+        th {
+            background: #f4f4f4;
+        }
+
+        tr:nth-child(even) {
+            background: #fafafa;
+        }
+
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+
+        .sql-box {
+            margin-top: 15px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+
+<h2>SQLite Query Viewer</h2>
+
+<div class="toolbar">
+    <label for="querySelect">Choose Query:</label>
+
+    <select id="querySelect">
+        <option value="">-- Select Query --</option>
+
+        <!-- Add your SQL files here -->
+        <option value="all_results.sql">All Results</option>
+        <option value="popular_pairs.sql">Popular Pairs</option>
+        <option value="popular_nos.sql">Popular Numbers</option>
+	<option value="shelf.sql">Shelf</option>
+	<option value="triples.sql">Triples</option>
+	<option value="counting.sql">Counting</option>
+    </select>
+
+    <button onclick="runSelectedQuery()">Run Query</button>
+</div>
+
+<div id="sqlDisplay" class="sql-box"></div>
+<div id="output"></div>
+
+<script>
+let db;
+
+// Initialize SQLite
+async function initDatabase() {
+    const SQL = await initSqlJs({
+        locateFile: file =>
+            `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${file}`
+    });
+
+    const response = await fetch("results.db");
+    const buffer = await response.arrayBuffer();
+
+    db = new SQL.Database(new Uint8Array(buffer));
+}
+
+// Run selected SQL file
+async function runSelectedQuery() {
+
+    const fileName = document.getElementById("querySelect").value;
+
+    if (!fileName) {
+        alert("Please select a query.");
+        return;
+    }
+
+    try {
+
+        // Load SQL file
+        const response = await fetch(fileName);
+
+        if (!response.ok) {
+            throw new Error(`Cannot load ${fileName}`);
+        }
+
+        const sql = await response.text();
+
+        // Show SQL text
+        document.getElementById("sqlDisplay").textContent = sql;
+
+        // Execute query
+        const result = db.exec(sql);
+
+        if (!result.length) {
+            document.getElementById("output").innerHTML =
+                "<p>No rows returned.</p>";
+            return;
+        }
+
+        renderTable(result[0]);
+
+    } catch (err) {
+
+        document.getElementById("output").innerHTML =
+            `<div class="error">${err.message}</div>`;
+    }
+}
+
+// Render HTML table
+function renderTable(data) {
+
+    const columns = data.columns;
+    const rows = data.values;
+
+    let html = "<table>";
+    html += "<thead><tr>";
+
+    columns.forEach(col => {
+        html += `<th>${col}</th>`;
+    });
+
+    html += "</tr></thead><tbody>";
+
+    rows.forEach(row => {
+
+        html += "<tr>";
+
+        row.forEach(cell => {
+            html += `<td>${cell}</td>`;
+        });
+
+        html += "</tr>";
+    });
+
+    html += "</tbody></table>";
+
+    document.getElementById("output").innerHTML = html;
+}
+
+// Initialize on page load
+initDatabase();
+</script>
+
+</body>
+</html>
